@@ -11,6 +11,6 @@ async fn main() -> Result<(), Error> {
 
     spotify_client.data.test().await;
 
-    spotify_client.streaming.play_track(track).await;
+    spotify_client.streaming.play_track(track).await?;
     Ok(())
 }

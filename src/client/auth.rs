@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use librespot::{
     core::{Error, Session, SessionConfig, cache::Cache},
@@ -13,19 +13,23 @@ const CACHE_PATH: &str = ".spotty_cache";
 #[derive(Clone)]
 pub struct AuthenticatedSpotifySession {
     session: Session,
+    credentials: Credentials,
 }
 
 // todo: better error handling
 impl AuthenticatedSpotifySession {
     pub async fn new() -> Result<Self, Error> {
         let libre_cache = Cache::new(Some(CACHE_PATH), None, None, None)?;
-        let credentials = Self::get_credentials(&libre_cache).await?;
+        let credentials = Self::load_credentials(&libre_cache).await?;
         let session = Self::new_session(libre_cache);
 
-        session.connect(credentials, true).await?;
-        println!("signed in to user {}", session.username());
+        // session.connect(credentials.clone(), true).await?;
+        // println!("signed in to user {}", session.username());
 
-        Ok(AuthenticatedSpotifySession { session })
+        Ok(AuthenticatedSpotifySession {
+            session,
+            credentials,
+        })
     }
 
     pub async fn get_rspotify_token(&self) -> Result<rspotify::Token, Error> {
@@ -49,8 +53,12 @@ impl AuthenticatedSpotifySession {
         return self.session.clone();
     }
 
+    pub fn get_credentials(&self) -> Credentials {
+        return self.credentials.clone();
+    }
+
     // Either get cached credentials or create a new set of credentials
-    async fn get_credentials(cache: &Cache) -> Result<Credentials, Error> {
+    async fn load_credentials(cache: &Cache) -> Result<Credentials, Error> {
         let credentials = match cache.credentials() {
             Some(credentials) => credentials,
             None => {
@@ -80,7 +88,8 @@ impl AuthenticatedSpotifySession {
     }
 
     fn new_session(cache: Cache) -> Session {
-        let session_config = SessionConfig::default();
+        let mut session_config = SessionConfig::default();
+        session_config.name = "spotty".to_string();
         Session::new(session_config, Some(cache))
     }
 }

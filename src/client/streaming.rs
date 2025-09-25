@@ -1,27 +1,39 @@
-use std::{process::exit, sync::Arc};
+use std::{
+    process::exit,
+    sync::Arc,
+    time::{self, Duration},
+};
 
 use librespot::{
-    core::SpotifyId,
+    connect::{ConnectConfig, LoadRequest, LoadRequestOptions, Spirc},
+    core::{Error, SpotifyId},
     playback::{
         audio_backend,
         config::{AudioFormat, PlayerConfig},
-        mixer::NoOpVolume,
+        mixer::{self, MixerConfig},
         player::Player,
     },
 };
+use tokio::time::sleep;
 
 use crate::client::auth::AuthenticatedSpotifySession;
 
 // Wrapper around librespot so we can call librespot methods with auth
 pub struct StreamingClient {
     player: Arc<Player>,
+    spirc: Spirc,
+    username: String,
 }
 
 impl StreamingClient {
     // TODO: prob shouldnt pass in session as an arg
-    pub fn new(session: Arc<AuthenticatedSpotifySession>) -> Self {
-        let config = PlayerConfig::default();
+    pub async fn new(session: Arc<AuthenticatedSpotifySession>) -> Result<Self, Error> {
+        let player_config = PlayerConfig::default();
+        let mixer_config = MixerConfig::default();
+        let connect_config = ConnectConfig::default();
+
         let audio_format = AudioFormat::default();
+
         let backend = match audio_backend::find(None) {
             Some(backend) => backend,
             None => {
@@ -31,18 +43,57 @@ impl StreamingClient {
             }
         };
 
+        let mixer_builder = mixer::find(None).unwrap();
+        let mixer = mixer_builder(mixer_config)?;
+        let auth_session = session.get_auth_session();
+
+        let credentials = session.get_credentials();
+        let username = credentials.clone().username.unwrap_or_default();
+
+        // auth_session.connect(credentials.clone(), true).await?;
+
         let player = Player::new(
-            config,
-            session.get_auth_session(),
-            Box::new(NoOpVolume),
+            player_config,
+            auth_session.clone(),
+            mixer.get_soft_volume(),
             move || backend(None, audio_format),
         );
 
-        StreamingClient { player }
+        let (spirc, spirc_task) = Spirc::new(
+            connect_config,
+            auth_session.clone(),
+            credentials,
+            player.clone(),
+            mixer,
+        )
+        .await?;
+        tokio::task::spawn(async move {
+            tokio::select! {
+                () = spirc_task => {},
+            }
+        });
+
+        Ok(StreamingClient {
+            player,
+            spirc,
+            username,
+        })
     }
 
-    pub async fn play_track(&self, track_id: SpotifyId) {
-        self.player.load(track_id, true, 0);
-        self.player.await_end_of_track().await;
+    pub async fn play_track(&self, track_id: SpotifyId) -> Result<(), Error> {
+        let request_options = LoadRequestOptions::default();
+
+        self.spirc.activate()?;
+        self.spirc.load(LoadRequest::from_context_uri(
+            format!("spotify:user:{}:collection", self.username),
+            request_options,
+        ))?;
+        self.spirc.play()?;
+
+        sleep(Duration::from_millis(100000)).await;
+        // self.player.load(track_id, true, 0);
+        // self.player.await_end_of_track().await;
+        //
+        Ok(())
     }
 }
