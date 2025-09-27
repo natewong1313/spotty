@@ -30,7 +30,8 @@ impl StreamingClient {
     pub async fn new(session: Arc<AuthenticatedSpotifySession>) -> Result<Self, Error> {
         let player_config = PlayerConfig::default();
         let mixer_config = MixerConfig::default();
-        let connect_config = ConnectConfig::default();
+        let mut connect_config = ConnectConfig::default();
+        connect_config.name = "spotty".to_string();
 
         let audio_format = AudioFormat::default();
 
@@ -49,6 +50,8 @@ impl StreamingClient {
 
         let credentials = session.get_credentials();
         let username = credentials.clone().username.unwrap_or_default();
+
+        println!("logged in as {}", username);
 
         // auth_session.connect(credentials.clone(), true).await?;
 
@@ -80,7 +83,8 @@ impl StreamingClient {
         })
     }
 
-    pub async fn play_track(&self, track_id: SpotifyId) -> Result<(), Error> {
+    pub async fn play_track(&self, _track_id: SpotifyId) -> Result<(), Error> {
+        println!("playing track");
         let request_options = LoadRequestOptions::default();
 
         self.spirc.activate()?;

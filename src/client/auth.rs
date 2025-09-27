@@ -88,8 +88,7 @@ impl AuthenticatedSpotifySession {
     }
 
     fn new_session(cache: Cache) -> Session {
-        let mut session_config = SessionConfig::default();
-        session_config.name = "spotty".to_string();
+        let session_config = SessionConfig::default();
         Session::new(session_config, Some(cache))
     }
 }
