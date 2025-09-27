@@ -1,64 +1,65 @@
-use eframe::Error;
-use eframe::egui::{Context, FontData, FontDefinitions, FontFamily};
+use std::sync::Arc;
 
-pub fn setup(ctx: &Context) {
+use eframe::egui::{FontData, FontDefinitions, FontFamily};
+
+pub fn get_fonts() -> FontDefinitions {
     let mut fonts = FontDefinitions::default();
 
-    let comic_sans_regular = include_bytes!("../../assets/comic-sans/Ldfcomicsans-jj7l.ttf");
-    fonts.font_data.insert(
-        "comic_sans_regular".to_owned(),
-        FontData::from_static(comic_sans_regular).into(),
-    );
+    load_comic_sans(&mut fonts);
+    load_icon_fonts(&mut fonts);
 
-    // Load the bold Comic Sans font
-    let comic_sans_bold = include_bytes!("../../assets/comic-sans/Ldfcomicsansbold-zgma.ttf");
-    fonts.font_data.insert(
-        "comic_sans_bold".to_owned(),
-        FontData::from_static(comic_sans_bold).into(),
-    );
+    fonts
+}
 
-    // Load the light Comic Sans font
-    let comic_sans_light = include_bytes!("../../assets/comic-sans/Ldfcomicsanslight-6dZo.ttf");
-    fonts.font_data.insert(
-        "comic_sans_light".to_owned(),
-        FontData::from_static(comic_sans_light).into(),
-    );
+fn load_comic_sans(fonts: &mut FontDefinitions) {
+    let comic_sans_fonts: &[(&str, &[u8])] = &[
+        (
+            "comic_sans_regular",
+            include_bytes!("../../assets/comic-sans/comic_sans_regular.ttf") as &[u8],
+        ),
+        (
+            "comic_sans_bold",
+            include_bytes!("../../assets/comic-sans/comic_sans_bold.ttf") as &[u8],
+        ),
+        (
+            "comic_sans_light",
+            include_bytes!("../../assets/comic-sans/comic_sans_light.ttf") as &[u8],
+        ),
+        (
+            "comic_sans_hairline",
+            include_bytes!("../../assets/comic-sans/comic_sans_harline.ttf") as &[u8],
+        ),
+    ];
 
-    // Load the hairline Comic Sans font
-    let comic_sans_hairline =
-        include_bytes!("../../assets/comic-sans/Ldfcomicsanshairline-5PmL.ttf");
-    fonts.font_data.insert(
-        "comic_sans_hairline".to_owned(),
-        FontData::from_static(comic_sans_hairline).into(),
-    );
+    let font_names: Vec<String> = comic_sans_fonts
+        .iter()
+        .map(|(name, data)| {
+            fonts
+                .font_data
+                .insert(name.to_string(), FontData::from_static(data).into());
+            name.to_string()
+        })
+        .collect();
 
-    // Create Comic Sans font family
-    fonts.families.insert(
-        FontFamily::Name("ComicSans".into()),
-        vec![
-            "comic_sans_regular".to_owned(),
-            "comic_sans_bold".to_owned(),
-            "comic_sans_light".to_owned(),
-            "comic_sans_hairline".to_owned(),
-        ],
-    );
+    fonts
+        .families
+        .insert(FontFamily::Name("ComicSans".into()), font_names);
+}
 
-    // Load Inter variable font
-    let inter_variable =
-        include_bytes!("../../assets/inter/Inter-VariableFont_opsz,wght.ttf");
-    fonts.font_data.insert(
-        "inter_variable".to_owned(),
-        FontData::from_static(inter_variable).into(),
-    );
+fn load_icon_fonts(fonts: &mut FontDefinitions) {
+    let phosphor_variants = [
+        ("phosphor", egui_phosphor::Variant::Regular),
+        ("phosphor-bold", egui_phosphor::Variant::Bold),
+        ("phosphor-fill", egui_phosphor::Variant::Fill),
+    ];
 
-    // Create Inter font family
-    fonts.families.insert(
-        FontFamily::Name("Inter".into()),
-        vec!["inter_variable".to_owned()],
-    );
-
-    // Set Inter as the default proportional font
-    fonts.families.get_mut(&FontFamily::Proportional).unwrap().insert(0, "inter_variable".to_owned());
-
-    ctx.set_fonts(fonts);
+    for (name, variant) in phosphor_variants {
+        fonts
+            .font_data
+            .insert(name.into(), Arc::new(variant.font_data()));
+        fonts.families.insert(
+            FontFamily::Name(name.into()),
+            vec!["Ubuntu-Light".into(), name.into()],
+        );
+    }
 }

@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use eframe::Error;
 use eframe::egui::{Context, FontData, FontDefinitions, FontFamily};
 use hello_egui::material_icons;
 
 use crate::gui::app::App;
+use crate::gui::fonts::get_fonts;
 
 pub mod app;
 pub mod fonts;
@@ -14,8 +17,7 @@ pub fn init_app() -> Result<(), Error> {
         "egui Demo",
         options,
         Box::new(|cc| {
-            material_icons::initialize(&cc.egui_ctx);
-            fonts::setup(&cc.egui_ctx);
+            cc.egui_ctx.set_fonts(get_fonts());
             Ok(Box::new(App::default()))
         }),
     )
