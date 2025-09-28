@@ -1,6 +1,10 @@
-use std::sync::Arc;
+use std::{error::Error, sync::Arc};
 
-use rspotify::{AuthCodeSpotify, prelude::OAuthClient};
+use rspotify::{
+    AuthCodeSpotify,
+    model::{Image, PrivateUser},
+    prelude::{BaseClient, OAuthClient},
+};
 
 use crate::client::auth::AuthenticatedSpotifySession;
 
@@ -15,10 +19,27 @@ impl DataClient {
         // test if this works
         DataClient { session }
     }
-    pub async fn test(&self) {
-        let token = self.session.get_rspotify_token().await.unwrap();
+    pub async fn get_user_name(&self) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
+        let user = self.get_user().await?;
+
+        Ok(user.display_name)
+    }
+    pub async fn get_user_profile_img(&self) -> Result<String, Box<dyn Error + Send + Sync>> {
+        let user = self.get_user().await?;
+        let image = match user.images {
+            Some(images) if images.len() > 0 => images[0].url.to_owned(),
+            Some(_) | None => {
+                // default profile pic i got from google
+                "https://i.scdn.co/image/ab67616100005174757d9a0af822e6400aa3e180".to_string()
+            }
+        };
+        Ok(image)
+    }
+
+    async fn get_user(&self) -> Result<PrivateUser, Box<dyn Error + Send + Sync>> {
+        let token = self.session.get_rspotify_token().await?;
         let spotify = AuthCodeSpotify::from_token(token);
-        let me = spotify.me().await.unwrap();
-        println!("{}", me.id);
+        let user = spotify.me().await?;
+        Ok(user)
     }
 }

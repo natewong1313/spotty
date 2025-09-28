@@ -16,3 +16,6 @@ eframe = "0.32.3"
 image = "0.25.8"
 hello_egui = { version = "0.9.0", features = ["material_icons"] }
 egui-phosphor ={ version = "0.10.0", features = ["regular", "bold", "fill"] }
+subsecond = "0.7.0-rc.0"
+dioxus-devtools = "0.7.0-rc.0"
+poll-promise = "0.3.0"

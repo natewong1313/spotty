@@ -1,29 +1,64 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use eframe::egui::{
-    self, Button, CentralPanel, Color32, FontFamily, Frame, Margin, RichText, SidePanel, Stroke,
-    TextEdit, Vec2, Widget, vec2,
+use eframe::{
+    CreationContext,
+    egui::{
+        self, Button, CentralPanel, Color32, Context, FontFamily, Frame, Margin, RichText,
+        SidePanel, Stroke, TextEdit, Vec2, Widget, vec2,
+    },
 };
 use egui_phosphor::regular::{
     HOUSE_LINE, LIST_MAGNIFYING_GLASS, MAGNIFYING_GLASS, MICROPHONE, PLAYLIST, USERS_THREE,
     VINYL_RECORD,
 };
 
+use crate::client::client::SpotifyClient;
+use tokio::{self, runtime::Runtime};
+
 pub struct App {
+    runtime: Runtime,
     search_text: String,
     selected_nav: String,
 }
 
-impl Default for App {
-    fn default() -> Self {
+impl App {
+    pub fn new(cc: &CreationContext) -> Self {
+        {
+            let ctx = cc.egui_ctx.clone();
+            subsecond::register_handler(Arc::new(move || ctx.request_repaint()));
+        }
+        let runtime = Runtime::new().unwrap();
         Self {
-            search_text: "".to_string(),
+            runtime,
             selected_nav: "Home".to_string(),
+            search_text: "".to_string(),
         }
     }
 }
 
 impl App {
+    fn render(&mut self, ctx: &Context) {
+        subsecond::call(|| {
+            SidePanel::left("sidebar")
+                .resizable(false)
+                .frame(egui::containers::Frame {
+                    inner_margin: Margin::symmetric(10, 10),
+                    fill: Color32::from_rgb(18, 18, 18),
+                    ..Default::default()
+                })
+                .show(ctx, |ui| {
+                    self.sidebar(ui);
+                });
+
+            CentralPanel::default()
+                .frame(egui::containers::Frame::default().fill(Color32::from_rgb(18, 18, 18)))
+                .show(ctx, |ui| {
+                    // Main content here
+                    ui.label(format!("The value is {}", self.search_text));
+                });
+        })
+    }
+
     fn sidebar(&mut self, ui: &mut egui::Ui) {
         let fill_font = FontFamily::Name("phosphor-fill".into());
 
@@ -34,7 +69,7 @@ impl App {
         ui.horizontal(|ui| {
             ui.add_space(10.0);
             ui.label(
-                RichText::new("Spotty")
+                RichText::new("Spotty!")
                     .size(22.0)
                     .strong()
                     .color(Color32::from_rgb(29, 185, 84))
@@ -42,7 +77,9 @@ impl App {
             );
         });
 
-        ui.add_space(16.0);
+        ui.add_space(8.0);
+
+        ui.add_space(8.0);
 
         // Frame::default()
         //     .stroke(Stroke::new(1.0, Color32::from_rgb(83, 83, 83)))
@@ -131,22 +168,8 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::left("sidebar")
-            .resizable(false)
-            .frame(egui::containers::Frame {
-                inner_margin: Margin::symmetric(10, 10),
-                fill: Color32::from_rgb(18, 18, 18),
-                ..Default::default()
-            })
-            .show(ctx, |ui| {
-                self.sidebar(ui);
-            });
-
-        CentralPanel::default()
-            .frame(egui::containers::Frame::default().fill(Color32::from_rgb(18, 18, 18)))
-            .show(ctx, |ui| {
-                // Main content here
-                ui.label(format!("The value is {}", self.search_text));
-            });
+        subsecond::call(|| {
+            self.render(ctx);
+        });
     }
 }
