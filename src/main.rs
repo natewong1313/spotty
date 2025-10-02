@@ -1,15 +1,22 @@
-use librespot::core::{Error, SpotifyId, spotify_id::SpotifyItemType};
-use std::sync::Arc;
+use std::sync::mpsc;
 
-use crate::{client::client::SpotifyClient, gui::init_app};
+use crate::{
+    backend::backend::init_backend,
+    gui::init_gui,
+    shared::message::{BackendMessage, GuiMessage},
+};
+mod backend;
 mod client;
 mod gui;
-
-use eframe::egui;
+mod shared;
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
-    init_app();
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let (to_backend, from_gui) = flume::unbounded::<BackendMessage>();
+    let (to_gui, from_backend) = flume::unbounded::<GuiMessage>();
+
+    init_backend(from_gui, to_gui).await?;
+    init_gui(from_backend, to_backend);
 
     Ok(())
 }

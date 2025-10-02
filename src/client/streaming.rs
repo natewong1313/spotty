@@ -62,6 +62,8 @@ impl StreamingClient {
             move || backend(None, audio_format),
         );
 
+        let mut event_channel = player.get_player_event_channel();
+
         let (spirc, spirc_task) = Spirc::new(
             connect_config,
             auth_session.clone(),

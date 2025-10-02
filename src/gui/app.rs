@@ -1,37 +1,45 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use eframe::{
     CreationContext,
     egui::{
-        self, Button, CentralPanel, Color32, Context, FontFamily, Frame, Margin, RichText,
-        SidePanel, Stroke, TextEdit, Vec2, Widget, vec2,
+        self, Button, CentralPanel, Color32, Context, FontFamily, Margin, RichText, SidePanel, Ui,
+        Vec2, vec2,
     },
 };
 use egui_phosphor::regular::{
-    HOUSE_LINE, LIST_MAGNIFYING_GLASS, MAGNIFYING_GLASS, MICROPHONE, PLAYLIST, USERS_THREE,
-    VINYL_RECORD,
+    HOUSE_LINE, LIST_MAGNIFYING_GLASS, MICROPHONE, PLAYLIST, USERS_THREE, VINYL_RECORD,
 };
+use flume::{Receiver, Sender};
 
 use crate::client::client::SpotifyClient;
-use tokio::{self, runtime::Runtime};
+use crate::shared::message::{BackendMessage, GuiMessage};
 
 pub struct App {
-    runtime: Runtime,
     search_text: String,
     selected_nav: String,
+    from_backend: Receiver<GuiMessage>,
+    to_backend: Sender<BackendMessage>,
+    count: u32,
 }
 
 impl App {
-    pub fn new(cc: &CreationContext) -> Self {
+    pub fn new(
+        cc: &CreationContext,
+        from_backend: Receiver<GuiMessage>,
+        to_backend: Sender<BackendMessage>,
+    ) -> Self {
         {
             let ctx = cc.egui_ctx.clone();
             subsecond::register_handler(Arc::new(move || ctx.request_repaint()));
         }
-        let runtime = Runtime::new().unwrap();
+
         Self {
-            runtime,
             selected_nav: "Home".to_string(),
             search_text: "".to_string(),
+            from_backend,
+            to_backend,
+            count: 0,
         }
     }
 }
@@ -39,6 +47,10 @@ impl App {
 impl App {
     fn render(&mut self, ctx: &Context) {
         subsecond::call(|| {
+            while let Ok(msg) = self.from_backend.try_recv() {
+                self.handle_backend_message(msg);
+            }
+
             SidePanel::left("sidebar")
                 .resizable(false)
                 .frame(egui::containers::Frame {
@@ -47,25 +59,25 @@ impl App {
                     ..Default::default()
                 })
                 .show(ctx, |ui| {
-                    self.sidebar(ui);
+                    self.ui_sidebar(ui);
                 });
 
             CentralPanel::default()
                 .frame(egui::containers::Frame::default().fill(Color32::from_rgb(18, 18, 18)))
                 .show(ctx, |ui| {
                     // Main content here
-                    ui.label(format!("The value is {}", self.search_text));
+                    ui.label(format!("The value is {}!", self.search_text));
+                    ui.label(format!("The value is {}!", self.count));
                 });
         })
     }
 
-    fn sidebar(&mut self, ui: &mut egui::Ui) {
-        let fill_font = FontFamily::Name("phosphor-fill".into());
-
+    fn ui_sidebar(&mut self, ui: &mut egui::Ui) {
         ui.style_mut().spacing.button_padding = vec2(10.0, 6.0);
 
+        // Logo
+        //
         ui.add_space(10.0);
-
         ui.horizontal(|ui| {
             ui.add_space(10.0);
             ui.label(
@@ -76,28 +88,8 @@ impl App {
                     .family(FontFamily::Name("ComicSans".into())),
             );
         });
-
         ui.add_space(8.0);
-
-        ui.add_space(8.0);
-
-        // Frame::default()
-        //     .stroke(Stroke::new(1.0, Color32::from_rgb(83, 83, 83)))
-        //     .corner_radius(4.0)
-        //     .inner_margin(Margin::symmetric(8, 4))
-        //     .show(ui, |ui| {
-        //         ui.horizontal(|ui| {
-        //             ui.label(RichText::new(MAGNIFYING_GLASS).family(regular_font));
-        //             ui.add(
-        //                 TextEdit::singleline(&mut self.search_text)
-        //                     .hint_text("Search")
-        //                     .frame(false),
-        //             );
-        //         });
-        //     });
-        //
-        // ui.add_space(10.0);
-
+        // Nav items
         let nav_items = vec![
             (HOUSE_LINE, "Home"),
             (PLAYLIST, "Playlists"),
@@ -106,63 +98,49 @@ impl App {
             (USERS_THREE, "Artists"),
             (LIST_MAGNIFYING_GLASS, "Discover"),
         ];
-
         for (icon, name) in nav_items {
-            let is_selected = self.selected_nav == name;
-            if ui
-                .add(
-                    Button::new(
-                        RichText::new(format!("{}  {}", icon, name))
-                            .size(16.0)
-                            .color(if is_selected {
-                                Color32::WHITE
-                            } else {
-                                Color32::from_rgb(83, 83, 83)
-                            })
-                            .family(fill_font.to_owned()),
-                    )
-                    .fill(if is_selected {
-                        Color32::from_rgb(33, 33, 33)
-                    } else {
-                        Color32::TRANSPARENT
-                    })
-                    .min_size(Vec2::new(200.0, 32.0)),
+            self.ui_nav_item(ui, icon, name);
+        }
+    }
+
+    fn ui_nav_item(&mut self, ui: &mut Ui, icon: &str, name: &str) {
+        let is_selected = self.selected_nav == name;
+        if ui
+            .add(
+                Button::new(
+                    RichText::new(format!("{}  {}", icon, name))
+                        .size(16.0)
+                        .color(if is_selected {
+                            Color32::WHITE
+                        } else {
+                            Color32::from_rgb(83, 83, 83)
+                        })
+                        .family(FontFamily::Name("phosphor-fill".into()).to_owned()),
                 )
-                .clicked()
-            {
-                self.selected_nav = name.to_string();
+                .fill(if is_selected {
+                    Color32::from_rgb(33, 33, 33)
+                } else {
+                    Color32::TRANSPARENT
+                })
+                .min_size(Vec2::new(200.0, 32.0)),
+            )
+            .clicked()
+        {
+            self.selected_nav = name.to_string();
+        }
+    }
+
+    fn handle_backend_message(&mut self, msg: GuiMessage) {
+        match msg {
+            GuiMessage::UserProfileLoaded => {
+                println!("profile loaded");
+                self.count += 1;
             }
         }
+    }
 
-        // ui.add_space(10.0);
-        //
-        // ui.separator();
-        // ui.add_space(10.0);
-        //
-        // ui.horizontal(|ui| {
-        //     ui.add_space(10.0);
-        //     ui.label(
-        //         egui::RichText::new("Pinned")
-        //             .color(Color32::from_rgb(83, 83, 83))
-        //             .size(12.0),
-        //     );
-        // });
-        //
-        // ui.add_space(10.0);
-        //
-        // ui.separator();
-        // ui.add_space(10.0);
-        //
-        // ui.horizontal(|ui| {
-        //     ui.add_space(10.0);
-        //     ui.label(
-        //         egui::RichText::new("My Library")
-        //             .color(Color32::from_rgb(83, 83, 83))
-        //             .size(12.0),
-        //     );
-        // });
-        //
-        // ui.add_space(10.0);
+    pub fn send_to_backend(&self, msg: BackendMessage) {
+        let _ = self.to_backend.send(msg);
     }
 }
 
