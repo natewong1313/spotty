@@ -11,7 +11,7 @@ pub struct SpotifyClient {
 }
 
 impl SpotifyClient {
-    pub async fn new() -> Result<Self, librespot::core::Error> {
+    pub async fn new() -> anyhow::Result<Self> {
         let session = Arc::new(AuthenticatedSpotifySession::new().await?);
         let streaming = StreamingClient::new(session.clone()).await?;
         let data = DataClient::new(session.clone());

@@ -1,26 +1,30 @@
 use std::sync::Arc;
 
 use eframe::{
-    CreationContext,
+    CreationContext, Frame,
     egui::{
-        self, Button, CentralPanel, Color32, Context, FontFamily, Margin, RichText, SidePanel, Ui,
-        Vec2, vec2,
+        self, Align, Button, CentralPanel, Color32, Context, FontFamily, FontId, Image,
+        ImageSource, Label, Layout, Link, Margin, RichText, SidePanel, Stroke, TextEdit, Ui, Vec2,
+        vec2,
     },
 };
 use egui_phosphor::regular::{
-    HOUSE_LINE, LIST_MAGNIFYING_GLASS, MICROPHONE, PLAYLIST, USERS_THREE, VINYL_RECORD,
+    HOUSE_LINE, LIST_MAGNIFYING_GLASS, MAGNIFYING_GLASS, MICROPHONE, PLAYLIST, USERS_THREE,
+    VINYL_RECORD,
 };
 use flume::{Receiver, Sender};
+use hello_egui::flex::{Flex, FlexAlignContent, FlexItem, item};
+use poll_promise::Promise;
 
-use crate::client::client::SpotifyClient;
 use crate::shared::message::{BackendMessage, GuiMessage};
+use crate::{client::client::SpotifyClient, shared::message::UserProfile};
 
 pub struct App {
     search_text: String,
     selected_nav: String,
     from_backend: Receiver<GuiMessage>,
     to_backend: Sender<BackendMessage>,
-    count: u32,
+    user_profile: Option<UserProfile>,
 }
 
 impl App {
@@ -31,6 +35,7 @@ impl App {
     ) -> Self {
         {
             let ctx = cc.egui_ctx.clone();
+            egui_extras::install_image_loaders(&ctx);
             subsecond::register_handler(Arc::new(move || ctx.request_repaint()));
         }
 
@@ -39,7 +44,7 @@ impl App {
             search_text: "".to_string(),
             from_backend,
             to_backend,
-            count: 0,
+            user_profile: None,
         }
     }
 }
@@ -63,11 +68,62 @@ impl App {
                 });
 
             CentralPanel::default()
-                .frame(egui::containers::Frame::default().fill(Color32::from_rgb(18, 18, 18)))
+                .frame(egui::containers::Frame {
+                    inner_margin: Margin::symmetric(8, 8),
+                    fill: Color32::from_rgb(18, 18, 18),
+                    ..Default::default()
+                })
                 .show(ctx, |ui| {
-                    // Main content here
-                    ui.label(format!("The value is {}!", self.search_text));
-                    ui.label(format!("The value is {}!", self.count));
+                    ui.horizontal(|ui| {
+                        ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
+                            if let Some(profile) = &self.user_profile {
+                                ui.add(
+                                    Image::new(profile.profile_img.clone())
+                                        .corner_radius(100)
+                                        .fit_to_fraction(Vec2::new(100.0, 100.0))
+                                        .max_size(Vec2::new(36.0, 36.0)),
+                                );
+                            }
+
+                            let available_size = ui.available_size();
+                            // Annoying search input
+                            ui.allocate_ui(available_size, |ui| {
+                                egui::Frame::group(ui.style())
+                                    .stroke(Stroke::NONE)
+                                    .fill(Color32::from_rgb(33, 33, 33))
+                                    .inner_margin(Margin::symmetric(8, 8))
+                                    .corner_radius(6)
+                                    .show(ui, |ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.with_layout(
+                                                Layout::left_to_right(Align::Center),
+                                                |ui| {
+                                                    ui.label(
+                                                        RichText::new(MAGNIFYING_GLASS)
+                                                            .size(20.0)
+                                                            .family(FontFamily::Name(
+                                                                "phosphor".into(),
+                                                            )),
+                                                    );
+                                                    ui.add_sized(
+                                                        ui.available_size(),
+                                                        egui::TextEdit::singleline(
+                                                            &mut self.search_text,
+                                                        )
+                                                        .font(FontId::new(
+                                                            16.0,
+                                                            FontFamily::Proportional,
+                                                        ))
+                                                        .hint_text("Search")
+                                                        .frame(false),
+                                                    );
+                                                },
+                                            );
+                                        });
+                                    });
+                            });
+                        });
+                    });
                 });
         })
     }
@@ -132,9 +188,11 @@ impl App {
 
     fn handle_backend_message(&mut self, msg: GuiMessage) {
         match msg {
-            GuiMessage::UserProfileLoaded => {
+            GuiMessage::UserProfileLoaded(profile) => {
                 println!("profile loaded");
-                self.count += 1;
+                println!("name {}", profile.name);
+                println!("image {}", profile.profile_img);
+                self.user_profile = Some(profile);
             }
         }
     }
