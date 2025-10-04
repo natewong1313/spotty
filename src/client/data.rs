@@ -1,6 +1,11 @@
 use std::{error::Error, sync::Arc};
 
-use rspotify::{AuthCodeSpotify, model::PrivateUser, prelude::OAuthClient};
+use futures::{StreamExt, TryStreamExt};
+use rspotify::{
+    AuthCodeSpotify,
+    model::{PlayHistory, PrivateUser, SimplifiedPlaylist},
+    prelude::{BaseClient, OAuthClient},
+};
 
 use crate::client::auth::AuthenticatedSpotifySession;
 
@@ -12,7 +17,6 @@ pub struct DataClient {
 
 impl DataClient {
     pub fn new(session: Arc<AuthenticatedSpotifySession>) -> Self {
-        // test if this works
         DataClient { session }
     }
     pub async fn get_user_name(&self) -> anyhow::Result<Option<String>> {
@@ -37,5 +41,24 @@ impl DataClient {
         let spotify = AuthCodeSpotify::from_token(token);
         let user = spotify.me().await?;
         Ok(user)
+    }
+
+    pub async fn get_playlists(&self) -> anyhow::Result<Vec<SimplifiedPlaylist>> {
+        let token = self.session.get_rspotify_token().await?;
+        let spotify = AuthCodeSpotify::from_token(token);
+        let raw_playlists = spotify.current_user_playlists();
+
+        let playlists = raw_playlists.try_collect::<Vec<_>>().await?;
+        Ok(playlists)
+    }
+
+    pub async fn get_recently_played(&self) -> anyhow::Result<Vec<PlayHistory>> {
+        let token = self.session.get_rspotify_token().await?;
+        let spotify = AuthCodeSpotify::from_token(token);
+        let recently_played = spotify
+            .current_user_recently_played(None, None)
+            .await?
+            .items;
+        Ok(recently_played)
     }
 }

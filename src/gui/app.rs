@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
+use eframe::Frame;
+use eframe::egui::SidePanel;
 use eframe::{
-    CreationContext, Frame,
+    CreationContext,
     egui::{
-        self, Align, Button, CentralPanel, Color32, Context, FontFamily, FontId, Image,
-        ImageSource, Label, Layout, Link, Margin, RichText, SidePanel, Stroke, TextEdit, Ui, Vec2,
-        vec2,
+        self, Align, Button, CentralPanel, Color32, Context, FontFamily, FontId, Image, Layout,
+        Margin, RichText, Stroke, TextEdit, Ui, Vec2, vec2,
     },
 };
 use egui_phosphor::regular::{
@@ -15,6 +16,7 @@ use egui_phosphor::regular::{
 use flume::{Receiver, Sender};
 use hello_egui::flex::{Flex, FlexAlignContent, FlexItem, item};
 use poll_promise::Promise;
+use rspotify::model::PlayHistory;
 
 use crate::shared::message::{BackendMessage, GuiMessage};
 use crate::{client::client::SpotifyClient, shared::message::UserProfile};
@@ -25,6 +27,7 @@ pub struct App {
     from_backend: Receiver<GuiMessage>,
     to_backend: Sender<BackendMessage>,
     user_profile: Option<UserProfile>,
+    recently_played: Option<Vec<PlayHistory>>,
 }
 
 impl App {
@@ -45,6 +48,7 @@ impl App {
             from_backend,
             to_backend,
             user_profile: None,
+            recently_played: None,
         }
     }
 }
@@ -75,6 +79,7 @@ impl App {
                 })
                 .show(ctx, |ui| {
                     ui.horizontal(|ui| {
+                        // Top bar
                         ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
                             if let Some(profile) = &self.user_profile {
                                 ui.add(
@@ -123,6 +128,12 @@ impl App {
                                     });
                             });
                         });
+                        // Content
+                        if let Some(recently_played) = &self.recently_played {
+                            for played in recently_played.iter() {
+                                // ui.label(played.track.name.clone());
+                            }
+                        }
                     });
                 });
         })
@@ -193,6 +204,17 @@ impl App {
                 println!("name {}", profile.name);
                 println!("image {}", profile.profile_img);
                 self.user_profile = Some(profile);
+            }
+            GuiMessage::UserPlaylistsLoaded(simplified_playlists) => {
+                for playlist in &simplified_playlists {
+                    // println!("{}", playlist.name);
+                }
+            }
+            GuiMessage::UserRecentlyPlayed(items) => {
+                for playlist in &items {
+                    println!("{}", playlist.track.name);
+                }
+                self.recently_played = Some(items)
             }
         }
     }

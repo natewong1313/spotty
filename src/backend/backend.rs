@@ -48,6 +48,14 @@ impl Backend {
         self.to_gui
             .send(GuiMessage::UserProfileLoaded(user_profile))?;
 
+        let playlists = self.spotify_client.data.get_playlists().await?;
+        self.to_gui
+            .send(GuiMessage::UserPlaylistsLoaded(playlists))?;
+
+        let recently_played = self.spotify_client.data.get_recently_played().await?;
+        self.to_gui
+            .send(GuiMessage::UserRecentlyPlayed(recently_played))?;
+
         Ok(())
     }
 
