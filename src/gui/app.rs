@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use eframe::Frame;
 use eframe::egui::SidePanel;
 use eframe::{
     CreationContext,
     egui::{
         self, Align, Button, CentralPanel, Color32, Context, FontFamily, FontId, Image, Layout,
-        Margin, RichText, Stroke, TextEdit, Ui, Vec2, vec2,
+        Margin, RichText, Stroke, Ui, Vec2, vec2,
     },
 };
 use egui_phosphor::regular::{
@@ -14,12 +13,10 @@ use egui_phosphor::regular::{
     VINYL_RECORD,
 };
 use flume::{Receiver, Sender};
-use hello_egui::flex::{Flex, FlexAlignContent, FlexItem, item};
-use poll_promise::Promise;
 use rspotify::model::PlayHistory;
 
 use crate::shared::message::{BackendMessage, GuiMessage};
-use crate::{client::client::SpotifyClient, shared::message::UserProfile};
+use crate::shared::message::UserProfile;
 
 pub struct App {
     search_text: String,

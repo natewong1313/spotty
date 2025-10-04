@@ -1,7 +1,7 @@
 use std::{
     process::exit,
     sync::Arc,
-    time::{self, Duration},
+    time::Duration,
 };
 
 use librespot::{
@@ -62,7 +62,7 @@ impl StreamingClient {
             move || backend(None, audio_format),
         );
 
-        let mut event_channel = player.get_player_event_channel();
+        let event_channel = player.get_player_event_channel();
 
         let (spirc, spirc_task) = Spirc::new(
             connect_config,

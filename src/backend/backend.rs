@@ -3,8 +3,6 @@ use flume::{Receiver, Sender};
 use crate::client::client::SpotifyClient;
 use crate::shared::message::{BackendMessage, GuiMessage, UserProfile};
 use std::sync::Arc;
-use std::thread::{self, sleep};
-use std::time::Duration;
 
 // I don't know a better name for this for now
 pub struct Backend {

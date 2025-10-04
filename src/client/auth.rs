@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 
 use librespot::{
     core::{Error, Session, SessionConfig, cache::Cache},

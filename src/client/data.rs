@@ -1,10 +1,10 @@
-use std::{error::Error, sync::Arc};
+use std::sync::Arc;
 
-use futures::{StreamExt, TryStreamExt};
+use futures::TryStreamExt;
 use rspotify::{
     AuthCodeSpotify,
     model::{PlayHistory, PrivateUser, SimplifiedPlaylist},
-    prelude::{BaseClient, OAuthClient},
+    prelude::OAuthClient,
 };
 
 use crate::client::auth::AuthenticatedSpotifySession;
