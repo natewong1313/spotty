@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use eframe::egui::SidePanel;
+use eframe::egui::{Grid, SidePanel};
 use eframe::{
     CreationContext,
     egui::{
@@ -15,8 +15,8 @@ use egui_phosphor::regular::{
 use flume::{Receiver, Sender};
 use rspotify::model::PlayHistory;
 
-use crate::shared::message::{BackendMessage, GuiMessage};
 use crate::shared::message::UserProfile;
+use crate::shared::message::{BackendMessage, GuiMessage};
 
 pub struct App {
     search_text: String,
@@ -125,13 +125,22 @@ impl App {
                                     });
                             });
                         });
-                        // Content
-                        if let Some(recently_played) = &self.recently_played {
-                            for played in recently_played.iter() {
-                                // ui.label(played.track.name.clone());
-                            }
-                        }
                     });
+
+                    // Content
+                    Grid::new("recently_played_grid")
+                        .spacing(Vec2::new(2.0, 4.0))
+                        .show(ui, |ui| {
+                            if let Some(recently_played) = &self.recently_played {
+                                for played in recently_played.iter() {
+                                    egui::Frame::new()
+                                        .fill(egui::Color32::WHITE)
+                                        .show(ui, |ui| {
+                                            ui.label(played.track.name.clone());
+                                        });
+                                }
+                            }
+                        });
                 });
         })
     }
